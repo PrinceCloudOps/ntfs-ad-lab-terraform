@@ -1,23 +1,20 @@
-# Enterprise Hybrid Identity & Access Management Lab - Layer 1
+# Enterprise Active Directory & NTFS Security Lab
 
-![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)
-![Azure](https://img.shields.io/badge/Azure-0089D6?style=for-the-badge&logo=microsoft-azure&logoColor=white)
-![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
-![Windows Server](https://img.shields.io/badge/Windows_Server-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+The backbone of file access control in enterprise IT systems administration relies on Windows File Servers backed by Active Directory groups and strict NTFS permissions[cite: 18]. This repository documents the complete engineering workflow to build a scalable, on-premises Identity and Access Management (IAM) foundation from scratch using Infrastructure as Code (IaC) and advanced PowerShell automation.
 
-This repository contains the Infrastructure as Code (IaC) and PowerShell automation scripts for Layer 1 of a comprehensive Hybrid Identity and Cloud Security architecture. 
+## The Business Problem & Objectives
+Organizations face the constant challenge of controlling who can access specific departmental data[cite: 18]. Finance data must be isolated from Sales, while IT requires administrative oversight to maintain the systems[cite: 18]. 
 
-The primary objective of this project is to engineer a scalable, on-premises Active Directory and File Services foundation from scratch, intentionally avoiding GUI shortcuts. By separating the Domain Controller from the File Server and fully automating the infrastructure and user lifecycle, this lab accurately mimics a real-world enterprise environment prepared for hybrid cloud integration.
+By bypassing the GUI and fully automating the infrastructure deployment and user lifecycle, this project eliminates configuration drift and establishes an explicit, secure permission boundary prepared for hybrid cloud integration.
 
-## 🎯 Project Objectives
-* **Infrastructure as Code (IaC):** Provision a secure Azure Virtual Network, subnets, Network Security Groups (NSGs), and virtual machines entirely via Terraform.
-* **Identity Management:** Programmatically generate mock employee data, establish an Active Directory Organizational Unit (OU) hierarchy, and provision users and Global Security Groups via PowerShell.
-* **Access Control (Zero Trust Foundation):** Architect strict NTFS permission boundaries and SMB file shares on a dedicated file server, adhering to the Principle of Least Privilege.
-* **Network Routing:** Manage custom DNS routing within Azure Virtual Networks to facilitate internal domain joining across isolated virtual machines.
+| Skill | Why it matters in a real environment[cite: 18] |
+| :--- | :--- |
+| **Deploy Active Directory with Terraform** | Infrastructure as Code ensures the environment is reproducible, version-controlled, and auditable rather than manually configured[cite: 18]. |
+| **Create OUs and Security Groups** | Security Groups allow administrators to manage access for hundreds of employees by modifying a single group membership instead of editing individual file permissions[cite: 18]. |
+| **Configure NTFS Permissions** | NTFS is the primary enforcement layer on Windows file systems; understanding inheritance and group access is mandatory for Cloud Security and system administration[cite: 18]. |
+| **Secure SMB Shares** | SMB handles file sharing across the network; separating share-level permissions from strict NTFS-level boundaries is a critical enterprise standard[cite: 18]. |
 
----
-
-## 🏗️ Architecture Diagram
+## Architecture & Components
 
 ```mermaid
 graph TD
@@ -40,45 +37,43 @@ graph TD
     NIC_FS01 --> FS01["Virtual Machine<br/>FS01<br/>File Server"]
 ```
 
----
+| Component | What it does | Why it's needed[cite: 20] |
+| :--- | :--- | :--- |
+| **VNet & Subnet** | Private network routing for the servers. | VMs on the same VNet communicate via private IPs; the `/24` subnet provides ample addresses for expansion[cite: 20]. |
+| **NSG-Core** | Firewall rules at the network interface layer[cite: 20]. | Restricts inbound port 3389 to prevent the virtual machines from being exposed to the public internet[cite: 20]. |
+| **DC01** | Domain Controller for `blakecloudsolutions.local`. | Centralizes Active Directory, identity management, and DNS routing for the domain[cite: 19]. |
+| **FS01** | Member File Server. | Hosts the SMB network shares and enforces the NTFS permission matrix per security group[cite: 19]. |
 
-## 🚀 Engineering Phases & Walkthrough
+## Engineering Workflow
 
-### Phase 1: Infrastructure Deployment (Terraform)
-The foundation of the environment is built on Azure using declarative Terraform configuration.
-* **Network Isolation:** Deployed a core Virtual Network (`VNet-Core`) and a dedicated subnet (`Subnet-Servers`). Network Security Groups (NSGs) were applied at the subnet level to restrict inbound access strictly to RDP (TCP 3389).
-* **Compute Provisioning:** Deployed two separate Windows Server 2022 virtual machines (`DC01` and `FS01`). `DC01` is exposed via a Public IP for administrative access, while `FS01` remains strictly internal.
-* **Automated AD Promotion:** Utilized the `azurerm_virtual_machine_extension` resource to execute a custom script during deployment, automatically installing the AD DS role and promoting `DC01` to a new forest (`blakecloudsolutions.local`) without manual intervention.
+### 1. Infrastructure Deployment (Terraform)
+* Deployed the core Azure Virtual Network, Subnet, and Network Security Group to establish a secure perimeter.
+* Provisioned the Domain Controller (`DC01`) and the File Server (`FS01`).
+* Executed an Azure Custom Script Extension to automatically install the AD DS role and promote `DC01` to a forest, completely avoiding manual GUI setups.
+* Engineered custom DNS routing on `FS01` to point to `DC01`, allowing for a successful automated domain join.
 
-### Phase 2: Active Directory Automation & Lifecycle Management
-Rather than manually creating users, I engineered a robust PowerShell script (`Create-50Users.ps1`) to handle bulk enterprise onboarding.
-* **Dynamic Data Generation:** The script dynamically generates a mock HR CSV dataset containing 50 employees across three departments (HR, IT, Sales).
-* **Organizational Structure:** Programmatically built the Active Directory hierarchy, generating Organizational Units (`OU=HR`, `OU=IT`, `OU=Sales`) and their corresponding Global Security Groups (`SG-HR`, `SG-IT`, `SG-Sales`).
-* **Account Provisioning:** Iterated through the dataset to automatically create user accounts with standardized naming conventions (e.g., `jdoe@blakecloudsolutions.local`), secure default passwords, and immediate mapping to their respective departmental security groups. Output is logged locally for audit trails.
+### 2. Automated Active Directory Provisioning
+* Authored a PowerShell script to dynamically generate a mock HR CSV dataset containing 50 randomized user identities.
+* Programmatically built the Active Directory hierarchy, establishing Organizational Units (`OU=HR`, `OU=IT`, `OU=Sales`) and mapping them to Global Security Groups (`SG-HR`, `SG-IT`, `SG-Sales`).
+* Ingested the generated CSV to automatically provision all 50 user accounts, map them to their respective departments, and assign them to the correct security groups, outputting the results to a local audit log.
 
-### Phase 3: File Server Hardening & NTFS Access Control
-To simulate secure corporate data management, `FS01` was configured as a dedicated file server.
-* **Domain Join:** Overcame initial DNS resolution constraints by manually configuring the DNS client server address on `FS01` to point to the private IP of `DC01`, allowing a successful Active Directory domain join.
-* **SMB & NTFS Separation:** Executed a configuration script (`Configure-NTFS-Shares.ps1`) to create departmental file directories. SMB share permissions were set to `Everyone: Full Control` to shift the security boundary entirely to the file system level.
-* **Strict NTFS Inheritance:** Disabled default inheritance on the departmental folders. Injected strict NTFS permission rules tied directly to the AD Global Security Groups. Validated that standard users cannot traverse into unauthorized departmental folders (e.g., an IT user cannot access the HR folder).
+### 3. File Server Security & NTFS Hardening
+* Created structured departmental file directories on `FS01` via PowerShell.
+* Configured SMB file shares with standard `Everyone` Full Access to properly separate network share availability from file-level security[cite: 29, 30].
+* Disabled default inheritance (`SetAccessRuleProtection`) and injected strict NTFS Access Control Lists (ACLs) tied directly to the Active Directory security groups (`BCLOUDSOLUTIONS\SG-HR`, etc.).
 
----
+## Validation Matrix
+This matrix validates that the implemented permission model successfully aligns with the business requirements[cite: 19].
 
-## 🛠️ Technology Stack
-* **Cloud Provider:** Microsoft Azure
-* **Infrastructure as Code:** HashiCorp Terraform
-* **Configuration Management:** PowerShell 5.1 / Active Directory Module
-* **Operating Systems:** Windows Server 2022 Datacenter
-* **Core Services:** Active Directory Domain Services (AD DS), DNS, SMB/NTFS
+| Test User Group | Target Share | Expected Result[cite: 35] | Reason[cite: 35] |
+| :--- | :--- | :--- | :--- |
+| `SG-HR` Member | `\\FS01\HR-Data` | Read & Write | Inherits `Modify` access directly from the `SG-HR` NTFS rule[cite: 35]. |
+| `SG-HR` Member | `\\FS01\Sales-Data` | Access Denied | Not a member of `SG-Sales`; no Access Control Entry exists for HR on this share[cite: 35]. |
+| `SG-IT` Member | `\\FS01\HR-Data` | Read & Write | IT administrators require `FullControl` across all departmental shares for system maintenance[cite: 18, 35]. |
 
----
-
-## 🧠 Lessons Learned & Challenges Overcome
-* **Custom DNS Routing for Domain Joins:** Out of the box, Azure VMs use Azure-provided DNS. When attempting to join `FS01` to the newly created `blakecloudsolutions.local` domain, it failed because Azure DNS had no record of it. The solution required updating the DNS settings on `FS01`'s network interface to point directly to `DC01`'s private IP (`10.0.1.4`), bridging the communication gap.
-* **Terraform State Management & GitHub Limits:** When attempting to push the IaC code to GitHub, the `.terraform` directory contained provider files exceeding GitHub's 100MB limit. Resolved this by properly configuring a `.gitignore` file and clearing Git's cache, ensuring only the source code is tracked.
-
----
-
-## 🔜 Next Steps
-**Layer 2: Cloud Infrastructure Governance (Azure RBAC)**
-With the on-premises identity and file storage foundation securely established, the next phase of this architecture will focus on extending these identities into the cloud using Microsoft Entra ID (formerly Azure AD) and implementing Role-Based Access Control (RBAC).
+## Lessons Learned & Troubleshooting
+* **Domain Controller Promotion & NetBIOS Conflicts:** Encountered promotion failures due to a domain naming conflict. Resolved by explicitly defining the NetBIOS name (`BCLOUDSOLUTIONS`) in the automated deployment script and implementing a post-promotion reboot to stabilize Active Directory Web Services.
+* **Custom DNS Routing & Domain Join Timing:** Because the File Server (`FS01`) was intentionally separated from the Domain Controller (`DC01`), `FS01` could not natively resolve `blakecloudsolutions.local`. Engineered a PowerShell loop to set `FS01`'s primary DNS to `DC01`'s static IP (`10.0.1.4`) and continuously retry resolution before executing the domain join[cite: 31].
+* **PowerShell Syntax & RDP Clipboard Corruption:** Initially faced persistent script parser errors when transferring code via RDP clipboard. Mitigated by using VS Code as a clean text intermediary and executing automation via native Azure Custom Script Extensions (`az vm run-command`) to completely bypass the need for RDP[cite: 18].
+* **Infrastructure as Code State Management:** Attempting to commit the raw Terraform workspace to GitHub initially triggered a file size block due to the 200MB+ Azure Provider executable. Resolved by implementing a strict `.gitignore` to keep `.terraform/` and `*.tfstate` files out of version control, protecting both repository size and sensitive state secrets.
+* **Azure CLI Authentication Tokens:** Deployment scripts failed when the underlying Azure CLI session expired[cite: 36]. Resolved by validating the correct subscription context via `az login` before executing `terraform apply` to ensure Key Vault and resource group provisioning had the necessary authorization[cite: 36].
