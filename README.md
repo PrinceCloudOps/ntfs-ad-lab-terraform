@@ -3,16 +3,16 @@
 The backbone of file access control in enterprise IT systems administration relies on Windows File Servers backed by Active Directory groups and strict NTFS permissions[cite: 18]. This repository documents the complete engineering workflow to build a scalable, on-premises Identity and Access Management (IAM) foundation from scratch using Infrastructure as Code (IaC) and advanced PowerShell automation.
 
 ## The Business Problem & Objectives
-Organizations face the constant challenge of controlling who can access specific departmental data[cite: 18]. Finance data must be isolated from Sales, while IT requires administrative oversight to maintain the systems[cite: 18]. 
+Organizations face the constant challenge of controlling who can access specific departmental data[cite: 18]. Finance data must be isolated from Sales, while IT requires administrative oversight to maintain the systems. 
 
 By bypassing the GUI and fully automating the infrastructure deployment and user lifecycle, this project eliminates configuration drift and establishes an explicit, secure permission boundary prepared for hybrid cloud integration.
 
-| Skill | Why it matters in a real environment[cite: 18] |
+| Skill | Why it matters in a real environment |
 | :--- | :--- |
-| **Deploy Active Directory with Terraform** | Infrastructure as Code ensures the environment is reproducible, version-controlled, and auditable rather than manually configured[cite: 18]. |
-| **Create OUs and Security Groups** | Security Groups allow administrators to manage access for hundreds of employees by modifying a single group membership instead of editing individual file permissions[cite: 18]. |
-| **Configure NTFS Permissions** | NTFS is the primary enforcement layer on Windows file systems; understanding inheritance and group access is mandatory for Cloud Security and system administration[cite: 18]. |
-| **Secure SMB Shares** | SMB handles file sharing across the network; separating share-level permissions from strict NTFS-level boundaries is a critical enterprise standard[cite: 18]. |
+| **Deploy Active Directory with Terraform** | Infrastructure as Code ensures the environment is reproducible, version-controlled, and auditable rather than manually configured. |
+| **Create OUs and Security Groups** | Security Groups allow administrators to manage access for hundreds of employees by modifying a single group membership instead of editing individual file permissions. |
+| **Configure NTFS Permissions** | NTFS is the primary enforcement layer on Windows file systems; understanding inheritance and group access is mandatory for Cloud Security and system administration. |
+| **Secure SMB Shares** | SMB handles file sharing across the network; separating share-level permissions from strict NTFS-level boundaries is a critical enterprise standard. |
 
 ## Architecture & Components
 
@@ -37,12 +37,12 @@ graph TD
     NIC_FS01 --> FS01["Virtual Machine<br/>FS01<br/>File Server"]
 ```
 
-| Component | What it does | Why it's needed[cite: 20] |
+| Component | What it does | Why it's needed|
 | :--- | :--- | :--- |
-| **VNet & Subnet** | Private network routing for the servers. | VMs on the same VNet communicate via private IPs; the `/24` subnet provides ample addresses for expansion[cite: 20]. |
-| **NSG-Core** | Firewall rules at the network interface layer[cite: 20]. | Restricts inbound port 3389 to prevent the virtual machines from being exposed to the public internet[cite: 20]. |
-| **DC01** | Domain Controller for `blakecloudsolutions.local`. | Centralizes Active Directory, identity management, and DNS routing for the domain[cite: 19]. |
-| **FS01** | Member File Server. | Hosts the SMB network shares and enforces the NTFS permission matrix per security group[cite: 19]. |
+| **VNet & Subnet** | Private network routing for the servers. | VMs on the same VNet communicate via private IPs; the `/24` subnet provides ample addresses for expansion. |
+| **NSG-Core** | Firewall rules at the network interface layer[cite: 20]. | Restricts inbound port 3389 to prevent the virtual machines from being exposed to the public internet. |
+| **DC01** | Domain Controller for `blakecloudsolutions.local`. | Centralizes Active Directory, identity management, and DNS routing for the domain. |
+| **FS01** | Member File Server. | Hosts the SMB network shares and enforces the NTFS permission matrix per security group. |
 
 ## Engineering Workflow
 
@@ -63,17 +63,17 @@ graph TD
 * Disabled default inheritance (`SetAccessRuleProtection`) and injected strict NTFS Access Control Lists (ACLs) tied directly to the Active Directory security groups (`BCLOUDSOLUTIONS\SG-HR`, etc.).
 
 ## Validation Matrix
-This matrix validates that the implemented permission model successfully aligns with the business requirements[cite: 19].
+This matrix validates that the implemented permission model successfully aligns with the business requirements.
 
-| Test User Group | Target Share | Expected Result[cite: 35] | Reason[cite: 35] |
+| Test User Group | Target Share | Expected Result[cite: 35] | Reason |
 | :--- | :--- | :--- | :--- |
-| `SG-HR` Member | `\\FS01\HR-Data` | Read & Write | Inherits `Modify` access directly from the `SG-HR` NTFS rule[cite: 35]. |
-| `SG-HR` Member | `\\FS01\Sales-Data` | Access Denied | Not a member of `SG-Sales`; no Access Control Entry exists for HR on this share[cite: 35]. |
-| `SG-IT` Member | `\\FS01\HR-Data` | Read & Write | IT administrators require `FullControl` across all departmental shares for system maintenance[cite: 18, 35]. |
+| `SG-HR` Member | `\\FS01\HR-Data` | Read & Write | Inherits `Modify` access directly from the `SG-HR` NTFS rule. |
+| `SG-HR` Member | `\\FS01\Sales-Data` | Access Denied | Not a member of `SG-Sales`; no Access Control Entry exists for HR on this share. |
+| `SG-IT` Member | `\\FS01\HR-Data` | Read & Write | IT administrators require `FullControl` across all departmental shares for system maintenance |
 
 ## Lessons Learned & Troubleshooting
 * **Domain Controller Promotion & NetBIOS Conflicts:** Encountered promotion failures due to a domain naming conflict. Resolved by explicitly defining the NetBIOS name (`BCLOUDSOLUTIONS`) in the automated deployment script and implementing a post-promotion reboot to stabilize Active Directory Web Services.
 * **Custom DNS Routing & Domain Join Timing:** Because the File Server (`FS01`) was intentionally separated from the Domain Controller (`DC01`), `FS01` could not natively resolve `blakecloudsolutions.local`. Engineered a PowerShell loop to set `FS01`'s primary DNS to `DC01`'s static IP (`10.0.1.4`) and continuously retry resolution before executing the domain join[cite: 31].
 * **PowerShell Syntax & RDP Clipboard Corruption:** Initially faced persistent script parser errors when transferring code via RDP clipboard. Mitigated by using VS Code as a clean text intermediary and executing automation via native Azure Custom Script Extensions (`az vm run-command`) to completely bypass the need for RDP[cite: 18].
 * **Infrastructure as Code State Management:** Attempting to commit the raw Terraform workspace to GitHub initially triggered a file size block due to the 200MB+ Azure Provider executable. Resolved by implementing a strict `.gitignore` to keep `.terraform/` and `*.tfstate` files out of version control, protecting both repository size and sensitive state secrets.
-* **Azure CLI Authentication Tokens:** Deployment scripts failed when the underlying Azure CLI session expired[cite: 36]. Resolved by validating the correct subscription context via `az login` before executing `terraform apply` to ensure Key Vault and resource group provisioning had the necessary authorization[cite: 36].
+* **Azure CLI Authentication Tokens:** Deployment scripts failed when the underlying Azure CLI session expired. Resolved by validating the correct subscription context via `az login` before executing `terraform apply` to ensure Key Vault and resource group provisioning had the necessary authorization.
