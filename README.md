@@ -1,6 +1,6 @@
 # Enterprise Active Directory & NTFS Security Lab
 
-The backbone of file access control in enterprise IT systems administration relies on Windows File Servers backed by Active Directory groups and strict NTFS permissions[cite: 18]. This repository documents the complete engineering workflow to build a scalable, on-premises Identity and Access Management (IAM) foundation from scratch using Infrastructure as Code (IaC) and advanced PowerShell automation.
+The backbone of file access control in enterprise IT systems administration relies on Windows File Servers backed by Active Directory groups and strict NTFS permissions. This repository documents the complete engineering workflow to build a scalable, on-premises Identity and Access Management (IAM) foundation from scratch using Infrastructure as Code (IaC) and advanced PowerShell automation.
 
 ## The Business Problem & Objectives
 Organizations face the constant challenge of controlling who can access specific departmental data[cite: 18]. Finance data must be isolated from Sales, while IT requires administrative oversight to maintain the systems. 
